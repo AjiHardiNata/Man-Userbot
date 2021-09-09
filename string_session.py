@@ -10,6 +10,7 @@ import os
 from time import sleep
 
 a = r"""
+StringSession Telegram Generator by @mrismanaziz
 """
 
 
