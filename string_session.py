@@ -123,7 +123,7 @@ def main():
     try:
         type_of_ss = int(
             input(
-                "\nSession Mana Yang ingin Anda Buat?\n1. Telethon (Man-Userbot)\n2. Pyrogram (BOT Music)\n\nMasukkan Pilihan 1 atau 2 :  "
+                "String Session Mana Yang ingin Anda Buat?\n1. Telethon (Man-Userbot)\n2. Pyrogram (BOT Music)\n\nMasukkan Pilihan 1 atau 2 :  "
             )
         )
     except Exception as e:
