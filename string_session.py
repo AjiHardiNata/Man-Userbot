@@ -12,6 +12,7 @@ from time import sleep
 a = r"""
 StringSession Telegram Generator by @mrismanaziz"""
 
+
 def spinner(x):
     if x == "tele":
         print("Memeriksa Telethon diinstal...")
