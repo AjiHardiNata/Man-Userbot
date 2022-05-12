@@ -10,11 +10,12 @@ import io
 import re
 
 import userbot.modules.sql_helper.blacklist_sql as sql
+from userbot import CMD_HANDLER as cmd
 from userbot import CMD_HELP
-from userbot.events import register
+from userbot.utils import edit_or_reply, man_cmd, man_handler
 
 
-@register(incoming=True, disable_edited=True, disable_errors=True)
+@man_handler(incoming=True)
 async def on_new_message(event):
     # TODO: exempt admins from locks
     name = event.raw_text
@@ -34,21 +35,20 @@ async def on_new_message(event):
             break
 
 
-@register(outgoing=True, pattern=r"^\.addbl(?: |$)(.*)")
+@man_cmd(pattern="addbl(?: |$)(.*)")
 async def on_add_black_list(addbl):
     text = addbl.pattern_match.group(1)
     to_blacklist = list(
         {trigger.strip() for trigger in text.split("\n") if trigger.strip()}
     )
-
     for trigger in to_blacklist:
         sql.add_to_blacklist(addbl.chat_id, trigger.lower())
-    await addbl.edit(
-        "`Menambahkan Kata` **{}** `Ke Blacklist Untuk Obrolan Ini`".format(text)
+    await edit_or_reply(
+        addbl, "`Menambahkan Kata` **{}** `Ke Blacklist Untuk Obrolan Ini`".format(text)
     )
 
 
-@register(outgoing=True, pattern=r"^\.listbl(?: |$)(.*)")
+@man_cmd(pattern="listbl(?: |$)(.*)")
 async def on_view_blacklist(listbl):
     all_blacklisted = sql.get_chat_blacklist(listbl.chat_id)
     OUT_STR = "Blacklists in the Current Chat:\n"
@@ -56,7 +56,7 @@ async def on_view_blacklist(listbl):
         for trigger in all_blacklisted:
             OUT_STR += f"`{trigger}`\n"
     else:
-        OUT_STR = "`Tidak Ada Blacklist Dalam Obrolan Ini.`"
+        OUT_STR = "**Tidak Ada Blacklist Dalam Obrolan Ini.**"
     if len(OUT_STR) > 4096:
         with io.BytesIO(str.encode(OUT_STR)) as out_file:
             out_file.name = "blacklist.text"
@@ -70,21 +70,19 @@ async def on_view_blacklist(listbl):
             )
             await listbl.delete()
     else:
-        await listbl.edit(OUT_STR)
+        await edit_or_reply(listbl, OUT_STR)
 
 
-@register(outgoing=True, pattern=r"^\.rmbl(?: |$)(.*)")
+@man_cmd(pattern="rmbl(?: |$)(.*)")
 async def on_delete_blacklist(rmbl):
     text = rmbl.pattern_match.group(1)
     to_unblacklist = list(
         {trigger.strip() for trigger in text.split("\n") if trigger.strip()}
     )
-
     successful = sum(
         bool(sql.rm_from_blacklist(rmbl.chat_id, trigger.lower()))
         for trigger in to_unblacklist
     )
-
     if not successful:
         await rmbl.edit("**{}** `Tidak Ada Di Blacklist`".format(text))
     else:
@@ -93,12 +91,12 @@ async def on_delete_blacklist(rmbl):
 
 CMD_HELP.update(
     {
-        "blacklist": "**Plugin : **`blacklist`\
-        \n\n  •  **Syntax :** `.listbl`\
+        "blacklist": f"**Plugin : **`blacklist`\
+        \n\n  •  **Syntax :** `{cmd}listbl`\
         \n  •  **Function : **Melihat daftar blacklist yang aktif di obrolan.\
-        \n\n  •  **Syntax :** `.addbl` <kata>\
+        \n\n  •  **Syntax :** `{cmd}addbl` <kata>\
         \n  •  **Function : **Memasukan pesan ke blacklist 'kata blacklist'.\
-        \n\n  •  **Syntax :** `.rmbl` <kata>\
+        \n\n  •  **Syntax :** `{cmd}rmbl` <kata>\
         \n  •  **Function : **Menghapus kata blacklist.\
     "
     }

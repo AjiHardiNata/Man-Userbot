@@ -14,34 +14,28 @@ from telethon.tl.functions.users import GetFullUserRequest
 from telethon.tl.types import MessageEntityMentionName
 from telethon.utils import get_input_location
 
+from userbot import CMD_HANDLER as cmd
 from userbot import CMD_HELP, TEMP_DOWNLOAD_DIRECTORY
-from userbot.events import register
+from userbot.utils import edit_or_reply, man_cmd
 
 
-@register(pattern=r"\.whois(?: |$)(.*)", outgoing=True)
+@man_cmd(pattern="whois(?: |$)(.*)")
 async def who(event):
-
-    await event.edit("`Mengambil Informasi Pengguna Ini...`")
-
+    xx = await edit_or_reply(event, "`Mengambil Informasi Pengguna Ini...`")
     if not os.path.isdir(TEMP_DOWNLOAD_DIRECTORY):
         os.makedirs(TEMP_DOWNLOAD_DIRECTORY)
-
     replied_user = await get_user(event)
     if replied_user is None:
-        return await event.edit(
+        return await xx.edit(
             "**itu admin anonim, selamat mencoba cari tahu yang mana!**"
         )
-
     try:
         photo, caption = await fetch_info(replied_user, event)
     except AttributeError:
-        return await event.edit("**Saya Tidak Mendapatkan Informasi Apapun.**")
-
+        return await xx.edit("**Saya Tidak Mendapatkan Informasi Apapun.**")
     message_id_to_reply = event.message.reply_to_msg_id
-
     if not message_id_to_reply:
         message_id_to_reply = None
-
     try:
         await event.client.send_file(
             event.chat_id,
@@ -52,20 +46,18 @@ async def who(event):
             reply_to=message_id_to_reply,
             parse_mode=r"html",
         )
-
         if not photo.startswith("http"):
             os.remove(photo)
         await event.delete()
-
     except TypeError:
-        await event.edit(caption, parse_mode=r"html")
+        await xx.edit(caption, parse_mode=r"html")
 
 
 async def get_user(event):
     """Get the user from argument or replied message."""
     if event.reply_to_msg_id and not event.pattern_match.group(1):
         previous_message = await event.get_reply_message()
-        if previous_message.from_id is None and not event.is_private:
+        if previous_message.sender_id is None and not event.is_private:
             return None
         replied_user = await event.client(
             GetFullUserRequest(previous_message.sender_id)
@@ -156,8 +148,8 @@ async def fetch_info(replied_user, event):
 
 CMD_HELP.update(
     {
-        "whois": "**Plugin : **`whois`\
-        \n\n  •  **Syntax :** `.whois` <username> Atau Balas Ke Pesan Pengguna Ketik `.whois`\
+        "whois": f"**Plugin : **`whois`\
+        \n\n  •  **Syntax :** `{cmd}whois` <username> Atau Balas Ke Pesan Pengguna Ketik `.whois`\
         \n  •  **Function : **Mendapatkan Informasi Pengguna.\
     "
     }

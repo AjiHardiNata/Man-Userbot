@@ -1,23 +1,15 @@
-import logging
-
 from telethon.utils import pack_bot_file_id
 
+from userbot import CMD_HANDLER as cmd
 from userbot import CMD_HELP, LOGS
-from userbot.events import register
-from userbot.utils import edit_delete, edit_or_reply
-
-logging.basicConfig(
-    format="[%(levelname)s- %(asctime)s]- %(name)s- %(message)s",
-    level=logging.INFO,
-    datefmt="%H:%M:%S",
-)
+from userbot.utils import edit_delete, edit_or_reply, man_cmd
+from userbot.utils.logger import logging
 
 LOGS = logging.getLogger(__name__)
 
 
-@register(outgoing=True, pattern=r"^\.(get_id|id)(?:\s|$)([\s\S]*)")
+@man_cmd(pattern="(get_id|id)(?:\s|$)([\s\S]*)")
 async def _(event):
-    "To get id of the group or user."
     input_str = event.pattern_match.group(2)
     if input_str:
         try:
@@ -44,25 +36,31 @@ async def _(event):
             bot_api_file_id = pack_bot_file_id(r_msg.media)
             await edit_or_reply(
                 event,
-                f"**👥 Chat ID : **`{event.chat_id}`\n**🙋‍♂️ From User ID : **`{r_msg.sender_id}`\n**📸 Media File ID: **`{bot_api_file_id}`",
+                "**💬 Message ID:** `{}`\n**🙋‍♂️ From User ID:** `{}`\n**💎 Bot API File ID:** `{}`".format(
+                    str(r_msg.id),
+                    str(r_msg.sender_id),
+                    bot_api_file_id,
+                ),
             )
 
         else:
             await edit_or_reply(
                 event,
-                f"**👥 Chat ID : **`{event.chat_id}`\n**🙋‍♂️ From User ID : **`{r_msg.sender_id}`",
+                "**👥 Chat ID:** `{}`\n**💬 Message ID:** `{}`\n**🙋‍♂️ From User ID:** `{}`".format(
+                    str(event.chat_id), str(r_msg.id), str(r_msg.sender_id)
+                ),
             )
 
     else:
-        await edit_or_reply(event, f"**👥 Chat ID : **`{event.chat_id}`")
+        await edit_or_reply(event, f"**👥 Chat ID: **`{event.chat_id}`")
 
 
 CMD_HELP.update(
     {
-        "id": "**Plugin : **`id`\
-        \n\n  •  **Syntax :** `.id` <username/reply>\
+        "id": f"**Plugin : **`id`\
+        \n\n  •  **Syntax :** `{cmd}id` <username/reply>\
         \n  •  **Function : **Untuk Mengambil Chat ID obrolan saat ini\
-        \n\n  •  **Syntax :** `.userid` <username/reply>\
+        \n\n  •  **Syntax :** `{cmd}userid` <username/reply>\
         \n  •  **Function : **Untuk Mengambil ID & Username obrolan saat ini\
     "
     }

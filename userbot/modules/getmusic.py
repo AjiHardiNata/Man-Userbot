@@ -5,7 +5,6 @@ import asyncio
 import glob
 import os
 import shutil
-import subprocess
 import time
 
 import deezloader
@@ -16,16 +15,15 @@ from telethon import events
 from telethon.errors.rpcerrorlist import YouBlockedUserError
 from telethon.tl.types import DocumentAttributeAudio, DocumentAttributeVideo
 
+from userbot import CMD_HANDLER as cmd
 from userbot import (
     CMD_HELP,
     DEEZER_ARL_TOKEN,
     LASTFM_USERNAME,
     TEMP_DOWNLOAD_DIRECTORY,
-    bot,
     lastfm,
 )
-from userbot.events import register
-from userbot.utils import chrome, progress
+from userbot.utils import bash, chrome, edit_or_reply, man_cmd, progress
 from userbot.utils.FastTelethon import upload_file
 
 
@@ -38,8 +36,8 @@ async def getmusic(cat):
     for i in user_data:
         video_link = i.get_attribute("href")
         break
-    command = f"youtube-dl -x --add-metadata --embed-thumbnail --audio-format mp3 {video_link}"
-    os.system(command)
+    command = f"yt-dlp -x --add-metadata --embed-thumbnail --no-progress --audio-format mp3 {video_link}"
+    await bash(command)
     return video_link
 
 
@@ -52,29 +50,29 @@ async def getmusicvideo(cat):
     for i in user_data:
         video_link = i.get_attribute("href")
         break
-    command = 'youtube-dl -f "[filesize<50M]" --merge-output-format mp4 ' + video_link
-    os.system(command)
+    command = (
+        'yt-dlp -f "[filesize<50M]" --no-progress --merge-output-format mp4 '
+        + video_link
+    )
+    await bash(command)
 
 
-@register(outgoing=True, pattern=r"^\.song (.*)")
+@man_cmd(pattern="song (.*)")
 async def _(event):
-    event.message.id
-    if event.reply_to_msg_id:
-        event.reply_to_msg_id
     reply = await event.get_reply_message()
     if event.pattern_match.group(1):
         query = event.pattern_match.group(1)
-        await event.edit("`Processing..`")
+        xx = await edit_or_reply(event, "`Processing..`")
     elif reply.message:
         query = reply.message
-        await event.edit("`Tunggu..! Saya menemukan lagu Anda..`")
+        await xx.edit("`Tunggu..! Saya menemukan lagu Anda..`")
     else:
-        await event.edit("`Apa yang seharusnya saya temukan?`")
+        await xx.edit("`Apa yang seharusnya saya temukan?`")
         return
 
     await getmusic(str(query))
     loa = glob.glob("*.mp3")[0]
-    await event.edit("`Yeah.. Mengupload lagu Anda..`")
+    await xx.edit("`Yeah.. Mengupload lagu Anda..`")
     c_time = time.time()
     with open(loa, "rb") as f:
         result = await upload_file(
@@ -91,48 +89,38 @@ async def _(event):
         allow_cache=False,
     )
     await event.delete()
-    os.system("rm -rf *.mp3")
-    subprocess.check_output("rm -rf *.mp3", shell=True)
+    await bash("rm -rf *.mp3")
 
 
-@register(outgoing=True, pattern=r"^\.vsong(?: |$)(.*)")
+@man_cmd(pattern="vsong(?: |$)(.*)")
 async def _(event):
-    event.message.id
-    if event.reply_to_msg_id:
-        event.reply_to_msg_id
     reply = await event.get_reply_message()
     if event.pattern_match.group(1):
         query = event.pattern_match.group(1)
-        await event.edit("`Processing..`")
+        xx = await edit_or_reply(event, "`Processing..`")
     elif reply:
         query = str(reply.message)
-        await event.edit("`Tunggu..! Saya menemukan lagu video Anda..`")
+        await xx.edit("**Tunggu..! Saya menemukan lagu video Anda..**")
     else:
-        await event.edit("`Apa yang seharusnya saya temukan?`")
+        await xx.edit("**Apa yang seharusnya saya temukan?**")
         return
     await getmusicvideo(query)
     l = glob.glob(("*.mp4")) + glob.glob(("*.mkv")) + glob.glob(("*.webm"))
     if l:
-        await event.edit("`Ya..! aku menemukan sesuatu..`")
+        await xx.edit("**Ya..! aku menemukan sesuatu..**")
     else:
-        await event.edit(
-            f"`Maaf..! saya tidak dapat menemukan apa pun dengan` **{query}**"
+        await xx.edit(
+            f"**Maaf..! saya tidak dapat menemukan apa pun dengan** `{query}`"
         )
         return
     try:
         loa = l[0]
         metadata = extractMetadata(createParser(loa))
-        duration = 0
-        width = 0
-        height = 0
-        if metadata.has("duration"):
-            duration = metadata.get("duration").seconds
-        if metadata.has("width"):
-            width = metadata.get("width")
-        if metadata.has("height"):
-            height = metadata.get("height")
-        os.system("cp *mp4 thumb.mp4")
-        os.system("ffmpeg -i thumb.mp4 -vframes 1 -an -s 480x360 -ss 5 thumb.jpg")
+        duration = metadata.get("duration").seconds if metadata.has("duration") else 0
+        width = metadata.get("width") if metadata.has("width") else 0
+        height = metadata.get("height") if metadata.has("height") else 0
+        await bash("cp *mp4 thumb.mp4")
+        await bash("ffmpeg -i thumb.mp4 -vframes 1 -an -s 480x360 -ss 5 thumb.jpg")
         thumb_image = "thumb.jpg"
         c_time = time.time()
         with open(loa, "rb") as f:
@@ -162,16 +150,16 @@ async def _(event):
                 )
             ],
         )
-        await event.edit(f"**{query}** `Berhasil Diupload..!`")
+        await xx.edit(f"**{query} Berhasil Diupload..!**")
         os.remove(thumb_image)
-        os.system("rm *.mkv *.mp4 *.webm")
+        await bash("rm *.mkv *.mp4 *.webm")
     except BaseException:
         os.remove(thumb_image)
-        os.system("rm *.mkv *.mp4 *.webm")
+        await bash("rm *.mkv *.mp4 *.webm")
         return
 
 
-@register(outgoing=True, pattern=r"^\.smd (?:(now)|(.*) - (.*))")
+@man_cmd(pattern="smd (?:(now)|(.*) - (.*))")
 async def _(event):
     if event.fwd_from:
         return
@@ -190,26 +178,26 @@ async def _(event):
     chat = "@SpotifyMusicDownloaderBot"
     try:
         await event.edit("`Getting Your Music...`")
-        async with bot.conversation(chat) as conv:
+        async with event.client.conversation(chat) as conv:
             await asyncio.sleep(2)
             await event.edit("`Downloading...`")
             try:
                 response = conv.wait_event(
                     events.NewMessage(incoming=True, from_users=752979930)
                 )
-                msg = await bot.send_message(chat, track)
+                msg = await event.client.send_message(chat, track)
                 respond = await response
                 res = conv.wait_event(
                     events.NewMessage(incoming=True, from_users=752979930)
                 )
                 r = await res
-                await bot.send_read_acknowledge(conv.chat_id)
+                await event.client.send_read_acknowledge(conv.chat_id)
             except YouBlockedUserError:
                 await event.reply(
                     "`Unblock `@SpotifyMusicDownloaderBot` dan coba lagi`"
                 )
                 return
-            await bot.forward_messages(event.chat_id, respond.message)
+            await event.client.forward_messages(event.chat_id, respond.message)
         await event.client.delete_messages(conv.chat_id, [msg.id, r.id, respond.id])
         await event.delete()
     except TimeoutError:
@@ -218,7 +206,7 @@ async def _(event):
         )
 
 
-@register(outgoing=True, pattern=r"^\.net (?:(now)|(.*) - (.*))")
+@man_cmd(pattern="net (?:(now)|(.*) - (.*))")
 async def _(event):
     if event.fwd_from:
         return
@@ -238,20 +226,20 @@ async def _(event):
     link = f"/netease {track}"
     await event.edit("`Searching...`")
     try:
-        async with bot.conversation(chat) as conv:
+        async with event.client.conversation(chat) as conv:
             await asyncio.sleep(2)
             await event.edit("`Processing...`")
             try:
                 msg = await conv.send_message(link)
                 response = await conv.get_response()
                 respond = await conv.get_response()
-                await bot.send_read_acknowledge(conv.chat_id)
+                await event.client.send_read_acknowledge(conv.chat_id)
             except YouBlockedUserError:
                 await event.reply("`Please unblock @WooMaiBot and try again`")
                 return
             await event.edit("`Sending Your Music...`")
             await asyncio.sleep(3)
-            await bot.send_file(event.chat_id, respond)
+            await event.client.send_file(event.chat_id, respond)
         await event.client.delete_messages(
             conv.chat_id, [msg.id, response.id, respond.id]
         )
@@ -262,7 +250,7 @@ async def _(event):
         )
 
 
-@register(outgoing=True, pattern=r"^\.mhb(?: |$)(.*)")
+@man_cmd(pattern="mhb(?: |$)(.*)")
 async def _(event):
     if event.fwd_from:
         return
@@ -273,18 +261,18 @@ async def _(event):
         await event.edit("`Processing...`")
     chat = "@MusicsHunterBot"
     try:
-        async with bot.conversation(chat) as conv:
+        async with event.client.conversation(chat) as conv:
             try:
                 msg_start = await conv.send_message("/start")
                 response = await conv.get_response()
                 msg = await conv.send_message(d_link)
                 details = await conv.get_response()
                 song = await conv.get_response()
-                await bot.send_read_acknowledge(conv.chat_id)
+                await event.client.send_read_acknowledge(conv.chat_id)
             except YouBlockedUserError:
                 await event.edit("`Unblock `@MusicsHunterBot` and retry`")
                 return
-            await bot.send_file(event.chat_id, song, caption=details.text)
+            await event.client.send_file(event.chat_id, song, caption=details.text)
             await event.client.delete_messages(
                 conv.chat_id, [msg_start.id, response.id, msg.id, details.id, song.id]
             )
@@ -295,7 +283,7 @@ async def _(event):
         )
 
 
-@register(outgoing=True, pattern=r"^\.deez (.+?|) (FLAC|MP3\_320|MP3\_256|MP3\_128)")
+@man_cmd(pattern="deez (.+?|) (FLAC|MP3\_320|MP3\_256|MP3\_128)")
 async def _(event):
     """DeezLoader by @An0nimia. Ported for UniBorg by @SpEcHlDe"""
     if event.fwd_from:
@@ -400,15 +388,9 @@ async def _(event):
 
 async def upload_track(track_location, message):
     metadata = extractMetadata(createParser(track_location))
-    duration = 0
-    title = ""
-    performer = ""
-    if metadata.has("duration"):
-        duration = metadata.get("duration").seconds
-    if metadata.has("title"):
-        title = metadata.get("title")
-    if metadata.has("artist"):
-        performer = metadata.get("artist")
+    duration = metadata.get("duration").seconds if metadata.has("duration") else 0
+    title = metadata.get("title") if metadata.has("title") else ""
+    performer = metadata.get("artist") if metadata.has("artist") else ""
     document_attributes = [
         DocumentAttributeAudio(
             duration=duration,
@@ -445,30 +427,18 @@ async def upload_track(track_location, message):
 
 CMD_HELP.update(
     {
-        "youtubedl": "**Plugin : **`youtubedl`\
-        \n\n  •  **Syntax :** `.song` <nama lagu>\
-        \n  •  **Function : **Untuk Mencari dan mendownload lagu dari youtube.\
-        \n\n  •  **Syntax :** `.vsong` <nama lagu>\
-        \n  •  **Function : **Untuk Mencari dan mendownload Video  dari youtube.\
-    "
-    }
-)
-
-
-CMD_HELP.update(
-    {
-        "getmusic": "**Plugin : **`getmusic`\
-        \n\n  •  **Syntax :** `smd` <nama lagu>\
+        "getmusic": f"**Plugin : **`getmusic`\
+        \n\n  •  **Syntax :** `{cmd}smd` <nama lagu>\
         \n  •  **Function : **Mendowload lagu dari bot @SpotifyMusicDownloaderBot\
-        \n\n  •  **Syntax :** `.smd now`\
+        \n\n  •  **Syntax :** `{cmd}smd now`\
         \n  •  **Function : **Unduh penggunaan scrobble LastFM saat ini dari bot @SpotifyMusicDownloaderBot\
-        \n\n  •  **Syntax :** `.net` <nama lagu>\
+        \n\n  •  **Syntax :** `{cmd}net` <nama lagu>\
         \n  •  **Function : **Mendowload lagu dari bot @WooMaiBot\
-        \n\n  •  **Syntax :** `.net now`\
+        \n\n  •  **Syntax :** `{cmd}net now`\
         \n  •  **Function : **Unduh penggunaan scrobble LastFM saat ini dari bot @WooMaiBot\
-        \n\n  •  **Syntax :** `.mhb` <Link Spotify/Deezer>\
+        \n\n  •  **Syntax :** `{cmd}mhb` <Link Spotify/Deezer>\
         \n  •  **Function : **Mendowload lagu dari Spotify atau Deezer dari bot @MusicsHunterBot\
-        \n\n  •  **Syntax :** `.deez` <link spotify/deezer> FORMAT\
+        \n\n  •  **Syntax :** `{cmd}deez` <link spotify/deezer> FORMAT\
         \n  •  **Function : **Mendowload lagu dari deezer atau spotify.\
         \n  •  **Format   : ** `FLAC`, `MP3_320`, `MP3_256`, `MP3_128`.\
     "

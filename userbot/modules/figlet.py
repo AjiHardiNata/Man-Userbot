@@ -9,13 +9,13 @@
 #
 
 import pyfiglet
-from emoji import get_emoji_regexp
 
+from userbot import CMD_HANDLER as cmd
 from userbot import CMD_HELP
-from userbot.events import register
+from userbot.utils import deEmojify, edit_delete, man_cmd
 
 
-@register(outgoing=True, pattern=r"^\.figlet (\w+) (.+)")
+@man_cmd(pattern="figlet (\w+) (.+)")
 async def figlet(event):
     if event.fwd_from:
         return
@@ -39,23 +39,19 @@ async def figlet(event):
     try:
         font = style_list[style]
     except KeyError:
-        return await event.edit(
-            "**Style yang dipilih tidak valid, ketik** `.help figlet` **bila butuh bantuan**"
+        return await edit_delete(
+            event,
+            "**Style yang dipilih tidak valid, ketik** `.help figlet` **bila butuh bantuan**",
         )
     result = pyfiglet.figlet_format(deEmojify(text), font=font)
     await event.respond(f"‌‌‎`{result}`")
     await event.delete()
 
 
-def deEmojify(inputString):
-    """Hapus emoji dan karakter tidak aman lainnya dari string"""
-    return get_emoji_regexp().sub("", inputString)
-
-
 CMD_HELP.update(
     {
-        "figlet": "**Plugin : **`figlet`\
-        \n\n  •  **Syntax :** `.figlet` <style> <text>\
+        "figlet": f"**Plugin : **`figlet`\
+        \n\n  •  **Syntax :** `{cmd}figlet` <style> <text>\
         \n  •  **Function : **Menyesuaikan gaya teks Anda dengan figlet.\
         \n\n  •  **List style :** `slant`, `3d`, `5line`, `alpha`, `banner`, `doh`, `iso`, `letter`, `allig`, `dotm`, `bubble`, `bulb`, `digi`\
     "

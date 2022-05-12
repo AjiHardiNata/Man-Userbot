@@ -5,37 +5,34 @@
 #
 """ Userbot help command """
 
-import asyncio
-
-from userbot import ALIVE_NAME, CMD_HELP, ICON_HELP
-from userbot.events import register
-
-modules = CMD_HELP
+from userbot import CHANNEL
+from userbot import CMD_HANDLER as cmd
+from userbot import CMD_HELP, ICON_HELP, ch
+from userbot.utils import edit_delete, edit_or_reply, man_cmd
 
 
-@register(outgoing=True, pattern=r"^\.help(?: |$)(.*)")
+@man_cmd(pattern="help(?: |$)(.*)")
 async def help(event):
-    """For .help command,"""
     args = event.pattern_match.group(1).lower()
     if args:
         if args in CMD_HELP:
-            await event.edit(str(CMD_HELP[args]))
+            await edit_or_reply(event, f"{CMD_HELP[args]}\n\n© {ch}")
         else:
-            await event.edit("**Masukan Perintah yang Bener Goblokkkk!!**")
-            await asyncio.sleep(15)
-            await event.delete()
+            await edit_delete(event, f"`{args}` **Bukan Nama Modul yang Valid.**")
     else:
+        user = await event.client.get_me()
         string = ""
         for i in CMD_HELP:
             string += "`" + str(i)
-            string += f"`\t\t{ICON_HELP}\t\t"
-        await event.edit(
-            f"**✦ Daftar Perintah Untuk Man-Userbot:**\n"
-            f"**✦ Jumlah** `{len(modules)}` **Modules**\n"
-            f"**✦ Owner:** `{ALIVE_NAME}`\n\n"
-            f"{ICON_HELP}  {string}"
-            "\n\nSupport @Lunatic0de"
+            string += f"`\t\t\t{ICON_HELP}\t\t\t"
+        await edit_or_reply(
+            event,
+            f"**✦ Daftar Perintah Untuk [Man-Userbot](https://github.com/mrismanaziz/Man-Userbot):**\n"
+            f"**✦ Jumlah** `{len(CMD_HELP)}` **Modules**\n"
+            f"**✦ Owner:** [{user.first_name}](tg://user?id={user.id})\n\n"
+            f"{ICON_HELP}   {string}"
+            f"\n\nSupport @{CHANNEL}",
         )
         await event.reply(
-            "\n**Contoh Ketik** `.help afk` **Untuk Melihat Informasi Module**"
+            f"\n**Contoh Ketik** `{cmd}help afk` **Untuk Melihat Informasi Module**"
         )

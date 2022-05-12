@@ -19,38 +19,39 @@
 
 import requests
 
+from userbot import CMD_HANDLER as cmd
 from userbot import CMD_HELP
-from userbot.events import register
+from userbot.utils import edit_or_reply, man_cmd
 
 
-@register(pattern=r"^\.shibe$", outgoing=True)
+@man_cmd(pattern="shibe$")
 async def shibe(event):
-    await event.edit("`Processing...`")
+    xx = await edit_or_reply(event, "`Processing...`")
     response = requests.get("https://shibe.online/api/shibes").json()
     if not response:
         await event.edit("**Tidak bisa menemukan Anjing.**")
         return
     await event.client.send_message(entity=event.chat_id, file=response[0])
-    await event.delete()
+    await xx.delete()
 
 
-@register(pattern=r"^\.cat$", outgoing=True)
+@man_cmd(pattern="cat$")
 async def cats(event):
-    await event.edit("`Processing...`")
+    xx = await edit_or_reply(event, "`Processing...`")
     response = requests.get("https://shibe.online/api/cats").json()
     if not response:
         await event.edit("**Tidak bisa menemukan kucing.**")
         return
     await event.client.send_message(entity=event.chat_id, file=response[0])
-    await event.delete()
+    await xx.delete()
 
 
 CMD_HELP.update(
     {
-        "animals": "**Plugin : **`animals`\
-        \n\n  •  **Syntax :** `.cat`\
+        "animals": f"**Plugin : **`animals`\
+        \n\n  •  **Syntax :** `{cmd}cat`\
         \n  •  **Function : **Untuk Mengirim gambar kucing secara random.\
-        \n\n  •  **Syntax :** `.shibe`\
+        \n\n  •  **Syntax :** `{cmd}shibe`\
         \n  •  **Function : **Untuk Mengirim gambar random dari anjing jenis Shiba.\
     "
     }

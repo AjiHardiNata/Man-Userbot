@@ -8,13 +8,14 @@
 from datetime import datetime
 
 from pytz import timezone
-from telethon.events import ChatAction
 
-from userbot import BOTLOG_CHATID, CLEAN_WELCOME, CMD_HELP, LOGS, bot
-from userbot.events import register
+from userbot import BLACKLIST_CHAT, BOTLOG_CHATID, CLEAN_WELCOME
+from userbot import CMD_HANDLER as cmd
+from userbot import CMD_HELP, LOGS
+from userbot.utils import chataction, man_cmd
 
 
-@bot.on(ChatAction)
+@chataction()
 async def welcome_to_chat(event):
     try:
         from userbot.modules.sql_helper.welcome_sql import (
@@ -23,12 +24,7 @@ async def welcome_to_chat(event):
         )
     except AttributeError:
         return
-    cws = get_current_welcome_settings(event.chat_id)
-    if cws:
-        """user_added=True,
-        user_joined=True,
-        user_left=False,
-        user_kicked=False"""
+    if cws := get_current_welcome_settings(event.chat_id):
         if (event.user_joined or event.user_added) and not (await event.get_user()).bot:
             if CLEAN_WELCOME:
                 try:
@@ -49,8 +45,8 @@ async def welcome_to_chat(event):
             title = chat.title or "Grup Ini"
             participants = await event.client.get_participants(chat)
             count = len(participants)
-            mention = "[{}](tg://user?id={})".format(a_user.first_name, a_user.id)
-            my_mention = "[{}](tg://user?id={})".format(me.first_name, me.id)
+            mention = f"[{a_user.first_name}](tg://user?id={a_user.id})"
+            my_mention = f"[{me.first_name}](tg://user?id={me.id})"
             first = a_user.first_name
             last = a_user.last_name
             fullname = f"{first} {last}" if last else first
@@ -92,8 +88,10 @@ async def welcome_to_chat(event):
             update_previous_welcome(event.chat_id, current_message.id)
 
 
-@register(outgoing=True, pattern=r"^\.setwelcome(?: |$)(.*)")
+@man_cmd(pattern="setwelcome(?: |$)(.*)")
 async def save_welcome(event):
+    if event.chat_id in BLACKLIST_CHAT:
+        return await event.edit("**Perintah ini Dilarang digunakan di Group ini**")
     try:
         from userbot.modules.sql_helper.welcome_sql import add_welcome_setting
     except AttributeError:
@@ -127,7 +125,7 @@ async def save_welcome(event):
         await event.edit(success.format("Disini"))
 
 
-@register(outgoing=True, pattern=r"^\.checkwelcome$")
+@man_cmd(pattern="checkwelcome$")
 async def show_welcome(event):
     try:
         from userbot.modules.sql_helper.welcome_sql import get_current_welcome_settings
@@ -136,7 +134,7 @@ async def show_welcome(event):
     cws = get_current_welcome_settings(event.chat_id)
     if not cws:
         return await event.edit("**Tidak Ada Pesan Welcome Yang Anda Simpan**")
-    elif cws.f_mesg_id:
+    if cws.f_mesg_id:
         msg_o = await event.client.get_messages(
             entity=BOTLOG_CHATID, ids=int(cws.f_mesg_id)
         )
@@ -147,7 +145,7 @@ async def show_welcome(event):
         await event.reply(cws.reply)
 
 
-@register(outgoing=True, pattern=r"^\.rmwelcome$")
+@man_cmd(pattern="rmwelcome$")
 async def del_welcome(event):
     try:
         from userbot.modules.sql_helper.welcome_sql import rm_welcome_setting
@@ -161,15 +159,15 @@ async def del_welcome(event):
 
 CMD_HELP.update(
     {
-        "welcome": "**Plugin : **`welcome`\
-        \n\n  •  **Syntax :** `.setwelcome` <pesan welcome> atau balas ke pesan ketik `.setwelcome`\
+        "welcome": f"**Plugin : **`welcome`\
+        \n\n  •  **Syntax :** `{cmd}setwelcome` <pesan welcome> atau balas ke pesan ketik `.setwelcome`\
         \n  •  **Function : **Menyimpan pesan welcome digrup.\
-        \n\n  •  **Syntax :** `.checkwelcome`\
+        \n\n  •  **Syntax :** `{cmd}checkwelcome`\
         \n  •  **Function : **Check pesan welcome yang anda simpan.\
-        \n\n  •  **Syntax :** `.rmwelcome`\
-        \n  •  **Function : **Menghapus pesan welcome yang anda simpan.\
-        \n\n  •  **Format Variabel yang bisa digunakan di setwelcome :**\
-        \n`{mention}`, `{title}`, `{count}`, `{first}`, `{last}`, `{fullname}`, `{userid}`, `{username}`, `{my_first}`, `{my_fullname}`, `{my_last}`, `{my_mention}`, `{my_username}`\
+        \n\n  •  **Syntax :** `{cmd}rmwelcome`\
+        \n  •  **Function : **Menghapus pesan welcome yang anda simpan."
+        "\n\n  •  **Format Variabel yang bisa digunakan di setwelcome :**\
+        `{mention}`, `{title}`, `{count}`, `{first}`, `{last}`, `{fullname}`, `{userid}`, `{username}`, `{my_first}`, `{my_fullname}`, `{my_last}`, `{my_mention}`, `{my_username}`\
     "
     }
 )

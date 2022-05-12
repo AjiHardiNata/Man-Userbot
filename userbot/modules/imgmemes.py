@@ -10,24 +10,9 @@ from telegraph import exceptions, upload_file
 from validators.url import url
 from wget import download
 
+from userbot import CMD_HANDLER as cmd
 from userbot import CMD_HELP, TEMP_DOWNLOAD_DIRECTORY, bot
-from userbot.events import register
-
-EMOJI_PATTERN = re.compile(
-    "["
-    "\U0001F1E0-\U0001F1FF"  # flags (iOS)
-    "\U0001F300-\U0001F5FF"  # symbols & pictographs
-    "\U0001F600-\U0001F64F"  # emoticons
-    "\U0001F680-\U0001F6FF"  # transport & map symbols
-    "\U0001F700-\U0001F77F"  # alchemical symbols
-    "\U0001F780-\U0001F7FF"  # Geometric Shapes Extended
-    "\U0001F800-\U0001F8FF"  # Supplemental Arrows-C
-    "\U0001F900-\U0001F9FF"  # Supplemental Symbols and Pictographs
-    "\U0001FA00-\U0001FA6F"  # Chess Symbols
-    "\U0001FA70-\U0001FAFF"  # Symbols and Pictographs Extended-A
-    "\U00002702-\U000027B0"  # Dingbats
-    "]+"
-)
+from userbot.utils import bash, deEmojify, man_cmd
 
 
 def convert_toimage(image):
@@ -37,11 +22,6 @@ def convert_toimage(image):
     img.save("temp.jpg", "jpeg")
     os.remove(image)
     return "temp.jpg"
-
-
-def deEmojify(inputString: str) -> str:
-    """Remove emojis and other non-safe characters from string"""
-    return re.sub(EMOJI_PATTERN, "", inputString)
 
 
 async def threats(text):
@@ -184,18 +164,18 @@ async def tweets(text1, text2):
 async def get_user_from_event(event):
     if event.reply_to_msg_id:
         previous_message = await event.get_reply_message()
-        user_obj = await event.client.get_entity(previous_message.from_id)
+        user_obj = await event.client.get_entity(previous_message.sender_id)
     return user_obj
 
 
 async def purge():
     try:
-        os.system("rm -rf *.png *.webp")
+        await bash("rm -rf *.png *.webp")
     except OSError:
         pass
 
 
-@register(outgoing=True, pattern=r"^\.trump(?: |$)(.*)")
+@man_cmd(pattern=r"trump(?: |$)(.*)")
 async def trump(event):
     text = event.pattern_match.group(1)
     text = re.sub("&", "", text)
@@ -216,7 +196,7 @@ async def trump(event):
     await purge()
 
 
-@register(pattern="^.modi(?: |$)(.*)", outgoing=True)
+@man_cmd(pattern="modi(?: |$)(.*)")
 async def nekobot(event):
     text = event.pattern_match.group(1)
     reply_to_id = event.message
@@ -236,7 +216,7 @@ async def nekobot(event):
     await purge()
 
 
-@register(outgoing=True, pattern=r"^\.cmm(?: |$)(.*)")
+@man_cmd(pattern=r"cmm(?: |$)(.*)")
 async def cmm(event):
     text = event.pattern_match.group(1)
     text = re.sub("&", "", text)
@@ -257,7 +237,7 @@ async def cmm(event):
     await purge()
 
 
-@register(outgoing=True, pattern=r"^\.kanna(?: |$)(.*)")
+@man_cmd(pattern="kanna(?: |$)(.*)")
 async def kanna(event):
     text = event.pattern_match.group(1)
     text = re.sub("&", "", text)
@@ -278,7 +258,7 @@ async def kanna(event):
     await purge()
 
 
-@register(outgoing=True, pattern=r"\.tweet(?: |$)(.*)")
+@man_cmd(pattern="tweet(?: |$)(.*)")
 async def tweet(event):
     text = event.pattern_match.group(1)
     text = re.sub("&", "", text)
@@ -307,8 +287,8 @@ async def tweet(event):
     await purge()
 
 
-@register(pattern=r"^\.threat(?: |$)(.*)", outgoing=True)
-async def nekobot(event):
+@man_cmd(pattern="threat(?: |$)(.*)")
+async def ngethreat(event):
     replied = await event.get_reply_message()
     if not os.path.isdir(TEMP_DOWNLOAD_DIRECTORY):
         os.makedirs(TEMP_DOWNLOAD_DIRECTORY)
@@ -340,7 +320,7 @@ async def nekobot(event):
         response = upload_file(download_location)
         os.remove(download_location)
     except exceptions.TelegraphException as exc:
-        await event.edit("ERROR: " + str(exc))
+        await event.edit(f"ERROR: {str(exc)}")
         os.remove(download_location)
         return
     file = f"https://telegra.ph{response[0]}"
@@ -349,8 +329,8 @@ async def nekobot(event):
     await bot.send_file(event.chat_id, file, reply_to=replied)
 
 
-@register(pattern=r"^\.trash(?: |$)(.*)", outgoing=True)
-async def nekobot(event):
+@man_cmd(pattern="trash(?: |$)(.*)")
+async def ngetrash(event):
     replied = await event.get_reply_message()
     if not os.path.isdir(TEMP_DOWNLOAD_DIRECTORY):
         os.makedirs(TEMP_DOWNLOAD_DIRECTORY)
@@ -382,7 +362,7 @@ async def nekobot(event):
         response = upload_file(download_location)
         os.remove(download_location)
     except exceptions.TelegraphException as exc:
-        await event.edit("ERROR: " + str(exc))
+        await event.edit(f"ERROR: {str(exc)}")
         os.remove(download_location)
         return
     file = f"https://telegra.ph{response[0]}"
@@ -391,8 +371,8 @@ async def nekobot(event):
     await bot.send_file(event.chat_id, file, reply_to=replied)
 
 
-@register(pattern=r"^\.trap(?: |$)(.*)", outgoing=True)
-async def nekobot(e):
+@man_cmd(pattern="trap(?: |$)(.*)")
+async def ngetrap(e):
     input_str = e.pattern_match.group(1)
     input_str = deEmojify(input_str)
     if "|" in input_str:
@@ -431,7 +411,7 @@ async def nekobot(e):
         response = upload_file(download_location)
         os.remove(download_location)
     except exceptions.TelegraphException as exc:
-        await e.edit("ERROR: " + str(exc))
+        await e.edit(f"ERROR: {str(exc)}")
         os.remove(download_location)
         return
     file = f"https://telegra.ph{response[0]}"
@@ -443,7 +423,7 @@ async def nekobot(e):
 # Ported by @AshSTR
 
 
-@register(outgoing=True, pattern=r"^\.fgs ((.*) ; (.*))")
+@man_cmd(pattern="fgs ((.*) ; (.*))")
 async def FakeGoogleSearch(event):
     """Get a user-customised google search meme!"""
     input_str = event.pattern_match.group(1)
@@ -478,7 +458,7 @@ async def FakeGoogleSearch(event):
     os.remove("downloads/test.jpg")
 
 
-@register(outgoing=True, pattern=r"^\.ph(?: |$)(.*)")
+@man_cmd(pattern="ph(?: |$)(.*)")
 async def phcomment(event):
     try:
         await event.edit("`Processing..`")
@@ -487,25 +467,23 @@ async def phcomment(event):
         if reply:
             user = await get_user_from_event(event)
             if user.last_name:
-                name = user.first_name + " " + user.last_name
+                name = f"{user.first_name} {user.last_name}"
             else:
                 name = user.first_name
             text = text or str(reply.message)
         elif text:
             user = await bot.get_me()
             if user.last_name:
-                name = user.first_name + " " + user.last_name
+                name = f"{user.first_name} {user.last_name}"
             else:
                 name = user.first_name
-            text = text
         else:
             return await event.edit("`Give text..`")
         try:
             photo = await event.client.download_profile_photo(
-                user.id,
-                str(user.id) + ".png",
-                download_big=False,
+                user.id, f"{str(user.id)}.png", download_big=False
             )
+
             uplded = upload_image(photo)
         except BaseException:
             uplded = "https://telegra.ph/file/7d110cd944d54f72bcc84.jpg"
@@ -528,29 +506,29 @@ async def phcomment(event):
 
 CMD_HELP.update(
     {
-        "imgmeme": "**Plugin : **`imgmeme`\
-        \n\n  •  **Syntax :** `.fgs`\
+        "imgmeme": f"**Plugin : **`imgmeme`\
+        \n\n  •  **Syntax :** `{cmd}fgs`\
         \n  •  **Function : **Meme dari search google yang di bisa custom user!\
-        \n  •  **Example  : **`.fgs [Teks Atas] ; [Teks Bawah]`\
-        \n\n  •  **Syntax :** `.trump`\
+        \n  •  **Example  : **`{cmd}fgs [Teks Atas] ; [Teks Bawah]`\
+        \n\n  •  **Syntax :** `{cmd}trump`\
         \n  •  **Function : **Membuat Tweet dari akun twitter Donald Trump\
-        \n\n  •  **Syntax :** `.modi` <text>\
+        \n\n  •  **Syntax :** `{cmd}modi` <text>\
         \n  •  **Function : **Membuat Tweet dari akun twitter @narendramodi\
-        \n\n  •  **Syntax :** `.cmm` <text>\
+        \n\n  •  **Syntax :** `{cmd}cmm` <text>\
         \n  •  **Function : **Membuat meme change my mind\
-        \n\n  •  **Syntax :** `.kanna` <text>\
+        \n\n  •  **Syntax :** `{cmd}kanna` <text>\
         \n  •  **Function : **Membuat meme tulisan dari nana anime bawa kertas\
-        \n\n  •  **Syntax :** `.ph` <text>\
+        \n\n  •  **Syntax :** `{cmd}ph` <text>\
         \n  •  **Function : **Membuat Tweet dari website pornhub\
-        \n\n  •  **Syntax :** `.threat` <text> (sambil reply media foto/sticker)\
+        \n\n  •  **Syntax :** `{cmd}threat` <text> (sambil reply media foto/sticker)\
         \n  •  **Function : **Membuat meme 3 hoax terbesar\
-        \n\n  •  **Syntax :** `.trash` <text> (sambil reply media foto/sticker)\
+        \n\n  •  **Syntax :** `{cmd}trash` <text> (sambil reply media foto/sticker)\
         \n  •  **Function : **Membuat meme list sampah\
-        \n\n  •  **Syntax :** `.trap` <text> (sambil reply media foto/sticker)\
+        \n\n  •  **Syntax :** `{cmd}trap` <text> (sambil reply media foto/sticker)\
         \n  •  **Function : **Membuat meme trapcard\
-        \n\n  •  **Syntax :** `.tweet`\
+        \n\n  •  **Syntax :** `{cmd}tweet`\
         \n  •  **Function : **Membuat Tweet dari akun twitter\
-        \n  •  **Example  : **.tweet @mrismanaziz.ganteng (harus pake . [titik])\
+        \n  •  **Example  : **{cmd}tweet @mrismanaziz.ganteng (harus pake . [titik])\
     "
     }
 )

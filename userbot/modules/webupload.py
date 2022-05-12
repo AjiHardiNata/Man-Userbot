@@ -5,18 +5,18 @@
 import asyncio
 import time
 
+from userbot import CMD_HANDLER as cmd
 from userbot import CMD_HELP, TEMP_DOWNLOAD_DIRECTORY, bot
-from userbot.events import register
+from userbot.utils import edit_or_reply, man_cmd
 
 
-@register(
-    outgoing=True,
-    pattern=r"^\.webupload ?(.+?|) (?:--)(anonfiles|transfer|filebin|anonymousfiles|megaupload|bayfiles)",
+@man_cmd(
+    pattern="webupload ?(.+?|) (?:--)(anonfiles|transfer|filebin|anonymousfiles|megaupload|bayfiles)"
 )
 async def _(event):
     if event.fwd_from:
         return
-    await event.edit("`Processing ...`")
+    xx = await edit_or_reply(event, "`Processing ...`")
     PROCESS_RUN_TIME = 100
     input_str = event.pattern_match.group(1)
     selected_transfer = event.pattern_match.group(2)
@@ -25,7 +25,6 @@ async def _(event):
     else:
         reply = await event.get_reply_message()
         file_name = await bot.download_media(reply.media, TEMP_DOWNLOAD_DIRECTORY)
-    event.message.id
     CMD_WEB = {
         "anonfiles": 'curl -F "file=@{}" https://anonfiles.com/api/upload',
         "transfer": 'curl --upload-file "{}" https://transfer.sh/{os.path.basename(file_name)}',
@@ -37,21 +36,21 @@ async def _(event):
     try:
         selected_one = CMD_WEB[selected_transfer].format(file_name)
     except KeyError:
-        await event.edit("Invalid selected Transfer")
+        await xx.edit("Invalid selected Transfer")
     cmd = selected_one
     time.time() + PROCESS_RUN_TIME
     process = await asyncio.create_subprocess_shell(
         cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
     )
     stdout, stderr = await process.communicate()
-    await event.edit(f"{stdout.decode()}")
+    await xx.edit(f"{stdout.decode()}")
 
 
 CMD_HELP.update(
     {
-        "webupload": "**Plugin : **`webupload`\
-        \n\n  •  **Syntax :** `.webupload --`(`anonfiles`|`transfer`|`filebin`|`anonymousfiles`|`megaupload`|`bayfiles`)\
-        \n  •  **Function : **Reply `.webupload --anonfiles` or `.webupload --filebin` and the file will be uploaded to that website. \
+        "webupload": f"**Plugin : **`webupload`\
+        \n\n  •  **Syntax :** `{cmd}webupload --`(`anonfiles`|`transfer`|`filebin`|`anonymousfiles`|`megaupload`|`bayfiles`)\
+        \n  •  **Function : **Reply `{cmd}webupload --anonfiles` or `.webupload --filebin` dan file akan diunggah ke situs web itu. \
     "
     }
 )

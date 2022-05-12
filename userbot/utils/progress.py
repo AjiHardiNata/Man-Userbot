@@ -15,13 +15,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-import time
 import math
+import time
 
 from telethon.errors.rpcerrorlist import MessageNotModifiedError
 
-from .tools import humanbytes, time_formatter
 from .exceptions import CancelProcess
+from .tools import humanbytes, time_formatter
 
 
 async def progress(
@@ -45,8 +45,8 @@ async def progress(
             status = "Unknown"
         progress_str = "`{0}` | `[{1}{2}] {3}%`".format(
             status,
-            "".join("●" for i in range(math.floor(percentage / 10))),
-            "".join("○" for i in range(10 - math.floor(percentage / 10))),
+            "".join("●" for _ in range(math.floor(percentage / 10))),
+            "".join("○" for _ in range(10 - math.floor(percentage / 10))),
             round(percentage, 2),
         )
 
@@ -67,9 +67,3 @@ async def progress(
                 await gdrive.edit(f"**{prog_type}**\n\n" f"**Status**\n{tmp}")
         except MessageNotModifiedError:
             pass
-
-
-class CancelProcess(Exception):
-    """
-    Cancel Process
-    """

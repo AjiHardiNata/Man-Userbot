@@ -3,7 +3,7 @@
 from sqlalchemy.exc import IntegrityError
 
 from userbot import CMD_HELP, bot
-from userbot.events import register
+from userbot.utils import man_cmd
 
 fban_replies = [
     "New FedBan",
@@ -17,7 +17,7 @@ fban_replies = [
 unfban_replies = ["New un-FedBan", "I'll give", "Un-FedBan"]
 
 
-@register(outgoing=True, disable_edited=True, pattern=r"^\.(d)?fban(?: |$)(.*)")
+@man_cmd(pattern="(d)?fban(?: |$)(.*)")
 async def fban(event):
     """Bans a user from connected federations."""
     try:
@@ -42,7 +42,7 @@ async def fban(event):
 
     try:
         fban_id = await event.client.get_peer_id(fban_id)
-    except Exception:
+    except BaseException:
         pass
 
     if event.sender_id == fban_id:
@@ -71,12 +71,12 @@ async def fban(event):
                     conv.chat_id, message=reply, clear_mentions=True
                 )
 
-                if not any(i in reply.text for i in fban_replies):
+                if all(i not in reply.text for i in fban_replies):
                     failed.append(i.fed_name)
-        except Exception:
+        except BaseException:
             failed.append(i.fed_name)
 
-    reason = reason if reason else "Not specified."
+    reason = reason or "Not specified."
 
     if failed:
         status = f"Failed to fban in {len(failed)}/{total} feds.\n"
@@ -90,7 +90,7 @@ async def fban(event):
     )
 
 
-@register(outgoing=True, disable_edited=True, pattern=r"^\.unfban(?: |$)(.*)")
+@man_cmd(pattern="unfban(?: |$)(.*)")
 async def unfban(event):
     """Unbans a user from connected federations."""
     try:
@@ -136,12 +136,12 @@ async def unfban(event):
                     conv.chat_id, message=reply, clear_mentions=True
                 )
 
-                if not any(i in reply.text for i in unfban_replies):
+                if all(i not in reply.text for i in unfban_replies):
                     failed.append(i.fed_name)
-        except Exception:
+        except BaseException:
             failed.append(i.fed_name)
 
-    reason = reason if reason else "Not specified."
+    reason = reason or "Not specified."
 
     if failed:
         status = f"Failed to un-fban in {len(failed)}/{total} feds.\n"
@@ -150,13 +150,13 @@ async def unfban(event):
     else:
         status = f"Success! Un-fbanned in {total} feds."
 
-    reason = reason if reason else "Not specified."
+    reason = reason or "Not specified."
     await event.edit(
         f"**Un-fbanned** {user_link}!\n**Reason:** {reason}\n**Status:** {status}"
     )
 
 
-@register(outgoing=True, pattern=r"^\.addf(?: |$)(.*)")
+@man_cmd(pattern="addf(?: |$)(.*)")
 async def addf(event):
     """Adds current chat to connected federations."""
     try:
@@ -176,7 +176,7 @@ async def addf(event):
     await event.edit("**Menambahkan grup ini ke daftar federasi!**")
 
 
-@register(outgoing=True, pattern=r"^\.delf$")
+@man_cmd(pattern="delf$")
 async def delf(event):
     """Removes current chat from connected federations."""
     try:
@@ -188,7 +188,7 @@ async def delf(event):
     await event.edit("**Menghapus grup ini dari daftar federasi!**")
 
 
-@register(outgoing=True, pattern=r"^\.listf$")
+@man_cmd(pattern="listf$")
 async def listf(event):
     """List all connected federations."""
     try:
@@ -208,7 +208,7 @@ async def listf(event):
     await event.edit(msg)
 
 
-@register(outgoing=True, disable_edited=True, pattern=r"^\.clearf$")
+@man_cmd(pattern="clearf$")
 async def clearf(event):
     """Removes all chats from connected federations."""
     try:

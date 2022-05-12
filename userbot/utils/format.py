@@ -1,31 +1,27 @@
-import re
-import requests
 import datetime
+
 from bs4 import BeautifulSoup
 from markdown import markdown
 from telethon.tl.tlobject import TLObject
 from telethon.tl.types import MessageEntityPre
 from telethon.utils import add_surrogate
 
+from .paste import pastetext
 
-def paste_text(text):
-    asciich = ["**", "`", "__"]
-    for i in asciich:
-        text = re.sub(rf"\{i}", "", text)
-    try:
-        nekokey = (
-            requests.post(
-                "https://nekobin.com/api/documents",
-                json={
-                    "content": text}) .json() .get("result") .get("key"))
-        link = f"https://nekobin.com/{nekokey}"
-    except Exception:
-        url = "https://del.dog/documents"
-        r = requests.post(url, data=text).json()
-        link = f"https://del.dog/{r['key']}"
-        if r["isUrl"]:
-            link = f"https://del.dog/v/{r['key']}"
-    return link
+
+async def paste_message(text, pastetype="p", extension=None, markdown=True):
+    if markdown:
+        text = md_to_text(text)
+    response = await pastetext(text, pastetype, extension)
+    if "url" in response:
+        return response["url"]
+    return "Error while pasting text to site"
+
+
+def md_to_text(md):
+    html = markdown(md)
+    soup = BeautifulSoup(html, features="html.parser")
+    return soup.get_text()
 
 
 def mentionuser(name, userid):
@@ -36,38 +32,12 @@ def htmlmentionuser(name, userid):
     return f"<a href='tg://user?id={userid}'>{name}</a>"
 
 
-def reformattext(text):
-    return text.replace(
-        "~",
-        "").replace(
-        "_",
-        "").replace(
-            "*",
-            "").replace(
-                "`",
-        "")
-
-
-def md_to_text(md):
-    html = markdown(md)
-    soup = BeautifulSoup(html, features="html.parser")
-    return soup.get_text()
-
-
 # kanged from uniborg @spechide
 # https://github.com/SpEcHiDe/UniBorg/blob/d8b852ee9c29315a53fb27055e54df90d0197f0b/uniborg/utils.py#L250
 
 
 def reformattext(text):
-    return text.replace(
-        "~",
-        "").replace(
-        "_",
-        "").replace(
-            "*",
-            "").replace(
-                "`",
-        "")
+    return text.replace("~", "").replace("_", "").replace("*", "").replace("`", "")
 
 
 def replacetext(text):
@@ -94,10 +64,9 @@ def replacetext(text):
 def parse_pre(text):
     text = text.strip()
     return (
-        text, [
-            MessageEntityPre(
-                offset=0, length=len(
-                    add_surrogate(text)), language="")], )
+        text,
+        [MessageEntityPre(offset=0, length=len(add_surrogate(text)), language="")],
+    )
 
 
 def yaml_format(obj, indent=0, max_str_len=256, max_byte_len=64):
@@ -126,12 +95,10 @@ def yaml_format(obj, indent=0, max_str_len=256, max_byte_len=64):
             formatted = yaml_format(v, indent)
             if not formatted.strip():
                 continue
-            result.append(" " * (indent if has_multiple_items else 1))
-            result.append(f"{k}:")
+            result.extend((" " * (indent if has_multiple_items else 1), f"{k}:"))
             if not formatted[0].isspace():
                 result.append(" ")
-            result.append(f"{formatted}")
-            result.append("\n")
+            result.extend((f"{formatted}", "\n"))
         if has_items:
             result.pop()
         if has_multiple_items:
@@ -146,8 +113,7 @@ def yaml_format(obj, indent=0, max_str_len=256, max_byte_len=64):
         # repr() bytes if it's printable, hex like "FF EE BB" otherwise
         if all(0x20 <= c < 0x7F for c in obj):
             return repr(obj)
-        return "<…>" if len(obj) > max_byte_len else " ".join(
-            f"{b:02X}" for b in obj)
+        return "<…>" if len(obj) > max_byte_len else " ".join(f"{b:02X}" for b in obj)
     elif isinstance(obj, datetime.datetime):
         # ISO-8601 without timezone offset (telethon dates are always UTC)
         return utc_to_local(obj).strftime("%Y-%m-%d %H:%M:%S")

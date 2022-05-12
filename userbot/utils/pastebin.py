@@ -1,3 +1,5 @@
+import re
+
 import aiohttp
 from aiohttp.client_exceptions import ClientConnectorError
 
@@ -5,23 +7,26 @@ from aiohttp.client_exceptions import ClientConnectorError
 class PasteBin:
 
     DOGBIN_URL = "https://del.dog/"
-    HASTEBIN_URL = "https://hastebin.com/"
+    HASTEBIN_URL = "https://www.toptal.com/developers/hastebin/"
     NEKOBIN_URL = "https://nekobin.com/"
     KATBIN_URL = "https://katb.in/"
-    _dkey = _hkey = _nkey = _kkey = retry = None
+    SPACEBIN_URL = "https://spaceb.in/"
+    _dkey = _hkey = _nkey = _kkey = _skey = retry = None
     service_match = {
         "-d": "dogbin",
         "-n": "nekobin",
         "-h": "hastebin",
-        "-k": "katbin"}
+        "-k": "katbin",
+        "-s": "spacebin",
+    }
 
     def __init__(self, data: str = None):
         self.http = aiohttp.ClientSession()
         self.data = data
-        self.retries = 4
+        self.retries = 5
 
     def __bool__(self):
-        return bool(self._dkey or self._nkey or self._hkey or self._kkey)
+        return bool(self._dkey or self._nkey or self._hkey or self._kkey or self._skey)
 
     async def __aenter__(self):
         return self
@@ -37,12 +42,25 @@ class PasteBin:
             await self._post_dogbin()
         elif service == "nekobin":
             await self._post_nekobin()
-        elif service == "hastebin":
-            await self._post_hastebin()
         elif service == "katbin":
             await self._post_katbin()
+        elif service == "spacebin":
+            await self._post_spacebin()
+        elif service == "hastebin":
+            await self._post_hastebin()
         else:
             raise KeyError(f"Unknown service input: {service}")
+
+    async def _get_katbin_token(self):
+        token = None
+        async with self.http.get(self.KATBIN_URL) as req:
+            if req.status != 200:
+                return token
+            content = await req.text()
+            for i in re.finditer(r'name="_csrf_token".+value="(.+)"', content):
+                token = i.group(1)
+                break
+        return token
 
     async def _post_dogbin(self):
         if self._dkey:
@@ -92,13 +110,32 @@ class PasteBin:
     async def _post_katbin(self):
         if self._kkey:
             return
+        token = await self._get_katbin_token()
+        if not token:
+            return
         try:
             async with self.http.post(
-                "https://api.katb.in/api/paste", json={"content": self.data}
+                self.KATBIN_URL,
+                data={"_csrf_token": token, "paste[content]": self.data},
+            ) as req:
+                if req.status != 200:
+                    self.retry = "spacebin"
+                else:
+                    self._kkey = str(req.url).split(self.KATBIN_URL)[-1]
+        except ClientConnectorError:
+            self.retry = "spacebin"
+
+    async def _post_spacebin(self):
+        if self._skey:
+            return
+        try:
+            async with self.http.post(
+                self.SPACEBIN_URL + "api/v1/documents",
+                json={"content": self.data, "extension": "txt"},
             ) as req:
                 if req.status == 201:
                     res = await req.json()
-                    self._kkey = res["paste_id"]
+                    self._skey = res["payload"]["id"]
                 else:
                     self.retry = "dogbin"
         except ClientConnectorError:
@@ -127,6 +164,8 @@ class PasteBin:
             return self.HASTEBIN_URL + self._hkey
         if self._kkey:
             return self.KATBIN_URL + self._kkey
+        if self._skey:
+            return self.SPACEBIN_URL + self._skey
         return False
 
     @property
@@ -139,5 +178,7 @@ class PasteBin:
         if self._hkey:
             return self.HASTEBIN_URL + "raw/" + self._hkey
         if self._kkey:
-            return self.KATBIN_URL + "raw/" + self._kkey
+            return self.KATBIN_URL + self._kkey
+        if self._skey:
+            return self.SPACEBIN_URL + self._skey
         return False

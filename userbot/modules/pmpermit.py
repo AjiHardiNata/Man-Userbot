@@ -8,34 +8,31 @@
 """ Userbot module for keeping control who PM you. """
 
 from sqlalchemy.exc import IntegrityError
+from telethon import events
 from telethon.tl.functions.contacts import BlockRequest, UnblockRequest
 from telethon.tl.functions.messages import ReportSpamRequest
 from telethon.tl.types import User
 
-from userbot import (
-    ALIVE_NAME,
-    BOTLOG,
-    BOTLOG_CHATID,
-    CMD_HELP,
-    COUNT_PM,
-    LASTMSG,
-    LOGS,
-    PM_AUTO_BAN,
-)
-from userbot.events import register
-
-# ========================= CONSTANTS ============================
-DEFAULTUSER = str(ALIVE_NAME) if ALIVE_NAME else uname().node
+from userbot import BOTLOG_CHATID
+from userbot import CMD_HANDLER as cmd
+from userbot import CMD_HELP, COUNT_PM, LASTMSG, LOGS, PM_AUTO_BAN, PM_LIMIT, bot
+from userbot.events import man_cmd
+from userbot.utils import edit_delete, edit_or_reply
 
 DEF_UNAPPROVED_MSG = (
-    f"Hallo, Saya **{DEFAULTUSER}-Userbot Private Security Protocol**\n\n"
-    f"__SAYA ADALAH BOT YANG MENJAGA ROOM CHAT INI MOHON JANGAN MELAKUKAN SPAM SAMPAI 8 CHAT, KARNA SAYA OTOMATIS AKAN MEMBLOKIR ANDA, TUNGGU SAMPAI__ **{DEFAULTUSER}** __MENERIMA PESAN ANDA__\n\n"
-    "✣ `PESAN OTOMATIS BY MAN-USERBOT` ✣\n"
+    "╔════════════════════╗\n"
+    "     ⛑ 𝗔𝗧𝗧𝗘𝗡𝗧𝗜𝗢𝗡 𝗣𝗟𝗘𝗔𝗦𝗘 ⛑\n"
+    "╚════════════════════╝\n"
+    "• Saya belum menyetujui anda untuk PM.\n"
+    "• Tunggu sampai saya menyetujui PM anda.\n"
+    "• Jangan Spam Chat atau anda akan otomatis diblokir.\n"
+    "╔════════════════════╗\n"
+    "    𝗣𝗲𝘀𝗮𝗻 𝗢𝘁𝗼𝗺𝗮𝘁𝗶𝘀 𝗕𝘆 -𝗨𝘀𝗲𝗿𝗕𝗼𝘁\n"
+    "╚════════════════════╝\n"
 )
-# =================================================================
 
 
-@register(incoming=True, disable_edited=True, disable_errors=True)
+@bot.on(events.NewMessage(incoming=True))
 async def permitpm(event):
     """ Prohibits people from PMing you without approval. \
         Will block retarded nibbas automatically. """
@@ -85,24 +82,26 @@ async def permitpm(event):
             else:
                 COUNT_PM[event.chat_id] = COUNT_PM[event.chat_id] + 1
 
-            if COUNT_PM[event.chat_id] > 8:
-                await event.respond("`Anda Telah Di Blokir Karna Melakukan Chat Spam`")
+            if COUNT_PM[event.chat_id] > PM_LIMIT:
+                await event.respond(
+                    "**Maaf Anda Telah Di Blokir Karna Melakukan Spam Chat**"
+                )
 
                 try:
                     del COUNT_PM[event.chat_id]
                     del LASTMSG[event.chat_id]
                 except KeyError:
-                    if BOTLOG:
+                    if BOTLOG_CHATID:
                         await event.client.send_message(
                             BOTLOG_CHATID,
-                            "Terjadi Error Saat Menghitung Private Message, Mohon Restart Bot!",
+                            "**Terjadi Error Saat Menghitung Private Message, Mohon Restart Bot!**",
                         )
                     return LOGS.info("Gagal menghitung PM yang diterima")
 
                 await event.client(BlockRequest(event.chat_id))
                 await event.client(ReportSpamRequest(peer=event.chat_id))
 
-                if BOTLOG:
+                if BOTLOG_CHATID:
                     name = await event.client.get_entity(event.chat_id)
                     name0 = str(name.first_name)
                     await event.client.send_message(
@@ -112,11 +111,11 @@ async def permitpm(event):
                         + "](tg://user?id="
                         + str(event.chat_id)
                         + ")"
-                        + " Telah Diblokir Karna Melakukan Spam Ke Room Chat",
+                        + " **Telah Diblokir Karna Melakukan Spam Ke Room Chat**",
                     )
 
 
-@register(disable_edited=True, outgoing=True, disable_errors=True)
+@bot.on(events.NewMessage(outgoing=True))
 async def auto_accept(event):
     """Will approve automatically if you texted them first."""
     if not PM_AUTO_BAN:
@@ -155,47 +154,47 @@ async def auto_accept(event):
                     except IntegrityError:
                         return
 
-                if is_approved(event.chat_id) and BOTLOG:
+                if is_approved(event.chat_id) and BOTLOG_CHATID:
                     await event.client.send_message(
                         BOTLOG_CHATID,
-                        "#AUTO-APPROVED\n"
-                        + "User: "
+                        "**#AUTO_APPROVED**\n"
+                        + "👤 **User:** "
                         + f"[{chat.first_name}](tg://user?id={chat.id})",
                     )
 
 
-@register(outgoing=True, pattern=r"^\.notifoff$")
+@bot.on(man_cmd(outgoing=True, pattern=r"notifoff$"))
 async def notifoff(noff_event):
-    """For .notifoff command, stop getting notifications from unapproved PMs."""
     try:
         from userbot.modules.sql_helper.globals import addgvar
     except AttributeError:
         return await noff_event.edit("`Running on Non-SQL mode!`")
     addgvar("NOTIF_OFF", True)
     await noff_event.edit(
-        "`Notifikasi Pesan Pribadi Tidak Disetujui, Telah Dibisukan!`"
+        "**Notifikasi Pesan Pribadi Tidak Disetujui, Telah Dibisukan!**"
     )
 
 
-@register(outgoing=True, pattern=r"^\.notifon$")
+@bot.on(man_cmd(outgoing=True, pattern=r"notifon$"))
 async def notifon(non_event):
-    """For .notifoff command, get notifications from unapproved PMs."""
     try:
         from userbot.modules.sql_helper.globals import delgvar
     except AttributeError:
         return await non_event.edit("`Running on Non-SQL mode!`")
     delgvar("NOTIF_OFF")
-    await non_event.edit("`Notifikasi Pesan Pribadi Disetujui, Tidak Lagi Dibisukan!`")
+    await non_event.edit(
+        "**Notifikasi Pesan Pribadi Disetujui, Tidak Lagi Dibisukan!**"
+    )
 
 
-@register(outgoing=True, pattern=r"^\.(?:setuju|ok)\s?(.)?")
+@bot.on(man_cmd(outgoing=True, pattern=r"(?:setuju|ok)\s?(.)?"))
 async def approvepm(apprvpm):
     """For .ok command, give someone the permissions to PM you."""
     try:
         from userbot.modules.sql_helper.globals import gvarstatus
         from userbot.modules.sql_helper.pm_permit_sql import approve
     except AttributeError:
-        return await apprvpm.edit("`Running on Non-SQL mode!`")
+        return await edit_delete(apprvpm, "`Running on Non-SQL mode!`")
 
     if apprvpm.reply_to_msg_id:
         reply = await apprvpm.get_reply_message()
@@ -214,10 +213,12 @@ async def approvepm(apprvpm):
         try:
             user = await apprvpm.client.get_entity(inputArgs)
         except BaseException:
-            return await apprvpm.edit("**Invalid username/ID.**")
+            return await edit_delete(apprvpm, "**Invalid username/ID.**")
 
         if not isinstance(user, User):
-            return await apprvpm.edit("**This can be done only with users.**")
+            return await edit_delete(
+                apprvpm, "**Mohon Reply Pesan User Yang ingin diterima.**"
+            )
 
         uid = user.id
         name0 = str(user.first_name)
@@ -225,7 +226,9 @@ async def approvepm(apprvpm):
     else:
         aname = await apprvpm.client.get_entity(apprvpm.chat_id)
         if not isinstance(aname, User):
-            return await apprvpm.edit("**This can be done only with users.**")
+            return await edit_delete(
+                apprvpm, "**Mohon Reply Pesan User Yang ingin diterima.**"
+            )
         name0 = str(aname.first_name)
         uid = apprvpm.chat_id
 
@@ -240,23 +243,19 @@ async def approvepm(apprvpm):
     try:
         approve(uid)
     except IntegrityError:
-        return await apprvpm.edit("`Pesan Anda Sudah Diterima`")
+        return await edit_delete(apprvpm, "**Pesan Anda Sudah Diterima**")
 
-    await apprvpm.edit(f"[{name0}](tg://user?id={uid}) `Pesan Anda Sudah Diterima`")
-
-    if BOTLOG:
-        await apprvpm.client.send_message(
-            BOTLOG_CHATID,
-            "#APPROVED\n" + "User: " + f"[{name0}](tg://user?id={uid})",
-        )
+    await edit_delete(
+        apprvpm, f"**Menerima Pesan Dari** [{name0}](tg://user?id={uid})", 5
+    )
 
 
-@register(outgoing=True, pattern=r"^\.(?:tolak|nopm)\s?(.)?")
+@bot.on(man_cmd(outgoing=True, pattern=r"(?:tolak|nopm)\s?(.)?"))
 async def disapprovepm(disapprvpm):
     try:
         from userbot.modules.sql_helper.pm_permit_sql import dissprove
     except BaseException:
-        return await disapprvpm.edit("`Running on Non-SQL mode!`")
+        return await edit_delete(disapprvpm, "`Running on Non-SQL mode!`")
 
     if disapprvpm.reply_to_msg_id:
         reply = await disapprvpm.get_reply_message()
@@ -276,10 +275,14 @@ async def disapprovepm(disapprvpm):
         try:
             user = await disapprvpm.client.get_entity(inputArgs)
         except BaseException:
-            return await disapprvpm.edit("`Salah username atau User ID.`")
+            return await edit_delete(
+                disapprvpm, "**Mohon Reply Pesan User Yang ingin ditolak.**"
+            )
 
         if not isinstance(user, User):
-            return await disapprvpm.edit("**This can be done only with users.**")
+            return await edit_delete(
+                disapprvpm, "**Mohon Reply Pesan User Yang ingin ditolak.**"
+            )
 
         aname = user.id
         dissprove(aname)
@@ -289,39 +292,34 @@ async def disapprovepm(disapprvpm):
         dissprove(disapprvpm.chat_id)
         aname = await disapprvpm.client.get_entity(disapprvpm.chat_id)
         if not isinstance(aname, User):
-            return await disapprvpm.edit("**This can be done only with users.**")
+            return await edit_delete(
+                disapprvpm, "**This can be done only with users.**"
+            )
         name0 = str(aname.first_name)
         aname = aname.id
 
-    await disapprvpm.edit(
-        f"[{name0}](tg://user?id={aname}) `Pesan Anda Telah Ditolak, Mohon Jangan Melakukan Spam Ke Room Chat!`"
+    await edit_or_reply(
+        disapprvpm,
+        f" **Maaf Pesan** [{name0}](tg://user?id={aname}) **Telah Ditolak, Mohon Jangan Melakukan Spam Ke Room Chat!**",
     )
 
-    if BOTLOG:
-        await disapprvpm.client.send_message(
-            BOTLOG_CHATID,
-            f"[{name0}](tg://user?id={aname})" "`Berhasil Ditolak`",
-        )
 
-
-@register(outgoing=True, pattern=r"^\.block$")
+@bot.on(man_cmd(outgoing=True, pattern=r"block$"))
 async def blockpm(block):
     """For .block command, block people from PMing you!"""
     if block.reply_to_msg_id:
         reply = await block.get_reply_message()
         replied_user = await block.client.get_entity(reply.sender_id)
         aname = replied_user.id
-        name0 = str(replied_user.first_name)
         await block.client(BlockRequest(aname))
-        await block.edit("`Anda Telah Diblokir!`")
+        await block.edit("**Anda Telah Diblokir!**")
         uid = replied_user.id
     else:
         await block.client(BlockRequest(block.chat_id))
         aname = await block.client.get_entity(block.chat_id)
         if not isinstance(aname, User):
             return await block.edit("**This can be done only with users.**")
-        await block.edit("`Kamu Telah Diblokir!`")
-        name0 = str(aname.first_name)
+        await block.edit("**Kamu Telah Diblokir!**")
         uid = block.chat_id
 
     try:
@@ -331,41 +329,28 @@ async def blockpm(block):
     except AttributeError:
         pass
 
-    if BOTLOG:
-        await block.client.send_message(
-            BOTLOG_CHATID,
-            "#BLOCKED\n" + "User: " + f"[{name0}](tg://user?id={uid})",
-        )
 
-
-@register(outgoing=True, pattern=r"^\.unblock$")
+@bot.on(man_cmd(outgoing=True, pattern=r"unblock$"))
 async def unblockpm(unblock):
     """For .unblock command, let people PMing you again!"""
     if unblock.reply_to_msg_id:
         reply = await unblock.get_reply_message()
         replied_user = await unblock.client.get_entity(reply.sender_id)
-        name0 = str(replied_user.first_name)
         await unblock.client(UnblockRequest(replied_user.id))
-        await unblock.edit("`Anda Sudah Tidak Diblokir Lagi.`")
-
-    if BOTLOG:
-        await unblock.client.send_message(
-            BOTLOG_CHATID,
-            f"[{name0}](tg://user?id={replied_user.id})" " Berhasil di Unblock!.",
-        )
+        await unblock.edit("**Anda Sudah Tidak Diblokir Lagi.**")
 
 
-@register(outgoing=True, pattern=r"^\.(set|get|reset) pmpermit(?: |$)(\w*)")
+@bot.on(man_cmd(outgoing=True, pattern=r"(set|get|reset) pmpermit(?: |$)(\w*)"))
 async def add_pmsg(cust_msg):
     """Set your own Unapproved message"""
     if not PM_AUTO_BAN:
         return await cust_msg.edit(
-            "**Anda Harus Menyetel Var** `PM_AUTO_BAN` **Ke** `True`"
+            "**Anda Harus Menyetel Var** `PM_AUTO_BAN` **Ke** `True`\n\n**Bila ingin Mengaktifkan PMPERMIT Silahkan Ketik:** `.set var PM_AUTO_BAN True`"
         )
     try:
         import userbot.modules.sql_helper.globals as sql
     except AttributeError:
-        await cust_msg.edit("`Running on Non-SQL mode!`")
+        await cust_msg.edit("**Running on Non-SQL mode!**")
         return
 
     await cust_msg.edit("`Processing...`")
@@ -383,19 +368,19 @@ async def add_pmsg(cust_msg):
             status = "Pesan"
 
         if not message:
-            return await cust_msg.edit("`Mohon Balas Ke Pesan`")
+            return await cust_msg.edit("**Mohon Reply Ke Pesan**")
 
         # TODO: allow user to have a custom text formatting
         # eg: bold, underline, striketrough, link
         # for now all text are in monoscape
         msg = message.message  # get the plain text
         sql.addgvar("unapproved_msg", msg)
-        await cust_msg.edit("`Pesan Berhasil Disimpan Ke Room Chat`")
+        await cust_msg.edit("**Pesan Berhasil Disimpan Ke Room Chat**")
 
-        if BOTLOG:
+        if BOTLOG_CHATID:
             await cust_msg.client.send_message(
                 BOTLOG_CHATID,
-                f"***{status} PMPERMIT Yang Tersimpan Dalam Room Chat Anda:*** \n\n{msg}",
+                f"**{status} PMPERMIT Yang Tersimpan:** \n\n{msg}",
             )
 
     if conf.lower() == "reset":
@@ -410,38 +395,38 @@ async def add_pmsg(cust_msg):
     if conf.lower() == "get":
         if custom_message is not None:
             await cust_msg.edit(
-                "**Pesan PMPERMIT Yang Sekarang Dikirimkan Ke Room Chat Anda:**"
-                f"\n\n{custom_message}"
+                "**Pesan PMPERMIT Yang Sekarang:**" f"\n\n{custom_message}"
             )
         else:
             await cust_msg.edit(
-                "**Anda Belum Menyetel Pesan Costum PMPERMIT,** "
-                f"Masih Menggunakan Pesan PM Default: \n\n{DEF_UNAPPROVED_MSG}"
+                "**Anda Belum Menyetel Pesan Costum PMPERMIT,**\n"
+                f"**Masih Menggunakan Pesan PM Default:**\n\n{DEF_UNAPPROVED_MSG}"
             )
 
 
 CMD_HELP.update(
     {
-        "pmpermit": "**Plugin : **`pmpermit`\
-        \n\n  •  **Syntax :** `.setuju` atau `.ok`\
+        "pmpermit": f"**Plugin : **`pmpermit`\
+        \n\n  •  **Syntax :** `{cmd}setuju` atau `{cmd}ok`\
         \n  •  **Function : **Menerima pesan seseorang dengan cara balas pesannya atau tag dan juga untuk dilakukan di pm.\
-        \n\n  •  **Syntax :** `.tolak` atau `.nopm`\
+        \n\n  •  **Syntax :** `{cmd}tolak` atau `{cmd}nopm`\
         \n  •  **Function : **Menolak pesan seseorang dengan cara balas pesannya atau tag dan juga untuk dilakukan di pm.\
-        \n\n  •  **Syntax :** `.block`\
+        \n\n  •  **Syntax :** `{cmd}block`\
         \n  •  **Function : **Memblokir Orang Di PM.\
-        \n\n  •  **Syntax :** `.unblock`\
+        \n\n  •  **Syntax :** `{cmd}unblock`\
         \n  •  **Function : **Membuka Blokir.\
-        \n\n  •  **Syntax :** `.notifoff`\
+        \n\n  •  **Syntax :** `{cmd}notifoff`\
         \n  •  **Function : **Menghidupkan notifikasi pesan yang belum diterima.\
-        \n\n  •  **Syntax :** `.notifon`\
+        \n\n  •  **Syntax :** `{cmd}notifon`\
         \n  •  **Function : **Menghidupkan notifikasi pesan yang belum diterima.\
-        \n\n  •  **Syntax :** `.set pmpermit` <balas ke pesan>\
+        \n\n  •  **Syntax :** `{cmd}set pmpermit` <balas ke pesan>\
         \n  •  **Function : **Menyetel Pesan Pribadimu untuk orang yang pesannya belum diterima.\
-        \n\n  •  **Syntax :** `.get pmpermit`\
+        \n\n  •  **Syntax :** `{cmd}get pmpermit`\
         \n  •  **Function : **Mendapatkan Custom pesan PM mu.\
-        \n\n  •  **Syntax :** `.reset pmpermit`\
+        \n\n  •  **Syntax :** `{cmd}reset pmpermit`\
         \n  •  **Function : **Menghapus pesan PM ke default.\
         \n\n  •  **Pesan Pribadi yang belum diterima saat ini tidak dapat disetel ke teks format kaya bold, underline, link, dll. Pesan akan terkirim normal saja**\
+        \n\n**NOTE: Bila ingin Mengaktifkan PMPERMIT Silahkan Ketik:** `.set var PM_AUTO_BAN True`\
     "
     }
 )
